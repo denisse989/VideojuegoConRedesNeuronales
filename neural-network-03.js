@@ -1,7 +1,7 @@
 "use strict";
 
-const LOG_ON = true; // whether or not to show error logging
-const LOG_FREQ = 20000; // how often to show error logs (in iterations)
+const LOG_ON = true; 
+const LOG_FREQ = 20000; // Iteraciones de muestra de error
 
 class NeuralNetwork {
   constructor(numInputs, numHidden, numOutputs) {
@@ -15,10 +15,12 @@ class NeuralNetwork {
     this._weights0 = new Matrix(this._numInputs, this._numHidden);
     this._weights1 = new Matrix(this._numHidden, this._numOutputs);
 
-    // error logging
+    this._outputs=[];
+
+    // Muestra de error
     this._logCount = LOG_FREQ;
 
-    // randomise the initial weights
+    // Randomizar los pesos y bias
     this._bias0.randomWeights();
     this._bias1.randomWeights();
     this._weights0.randomWeights();
@@ -81,32 +83,38 @@ class NeuralNetwork {
     this._logCount = count;
   }
 
-  feedForward(inputArray) {
-    // convert input array to a matrix
-    this.inputs = Matrix.convertFromArray(inputArray);
+  getInfo(){
 
-    // find the hidden values and apply the activation function
+    return [this._bias0, this._bias1, this._hidden, this._inputs, this._outputs, this.weights0, this.weights1];
+  }
+
+  feedForward(inputArray) {
+    // Convertir el array de entrada en una matriz
+    this.inputs = Matrix.convertFromArray(inputArray); 
+
+    // Encontrar los valores en las capas ocultas y aplicar la función de activación
     this.hidden = Matrix.dot(this.inputs, this.weights0);
-    this.hidden = Matrix.add(this.hidden, this.bias0); // apply bias
+    this.hidden = Matrix.add(this.hidden, this.bias0); // Aplicar el bias
     this.hidden = Matrix.map(this.hidden, (x) => sigmoid(x));
 
-    // find the output values and apply the activation function
+    // Encontrar los valores de salida y aplicar las funciones de activación
     let outputs = Matrix.dot(this.hidden, this.weights1);
-    outputs = Matrix.add(outputs, this.bias1); // apply bias
+    outputs = Matrix.add(outputs, this.bias1); // Aplicar el bias
     outputs = Matrix.map(outputs, (x) => sigmoid(x));
 
+    this._outputs=outputs;
     return outputs;
   }
 
   train(inputArray, targetArray) {
-    // feed the input data through the network
+    // Obtener los outputs con los inputs
     let outputs = this.feedForward(inputArray);
 
-    // calculate the output errors (target - output)
+    //Calcular los errores de entrenamiento
     let targets = Matrix.convertFromArray(targetArray);
     let outputErrors = Matrix.subtract(targets, outputs);
 
-    // error logging
+    // Logueo de errores en consolas
     if (LOG_ON) {
       if (this.logCount == LOG_FREQ) {
         console.log("error = " + outputErrors.data[0][0]);
@@ -117,19 +125,19 @@ class NeuralNetwork {
       }
     }
 
-    // calculate the deltas (errors * derivitive of the output)
+    // Calculo de deltas (error * derivada de salidas)
     let outputDerivs = Matrix.map(outputs, (x) => sigmoid(x, true));
     let outputDeltas = Matrix.multiply(outputErrors, outputDerivs);
 
-    // calculate hidden layer errors (deltas "dot" transpose of weights1)
+    // Calculo de errores de capas ocultas (producto punto de los deltas por la transpuesta de los pesos))
     let weights1T = Matrix.transpose(this.weights1);
     let hiddenErrors = Matrix.dot(outputDeltas, weights1T);
 
-    // calculate the hidden deltas (errors * derivitive of hidden)
+    // Calculo de deltas ocultos (error * derivada de salidas ocultas)
     let hiddenDerivs = Matrix.map(this.hidden, (x) => sigmoid(x, true));
     let hiddenDeltas = Matrix.multiply(hiddenErrors, hiddenDerivs);
 
-    // update the weights (add transpose of layers "dot" deltas)
+    // Actualizar los pesos (Sumar la transpuesta de los nodos ocultos con producto punto de los deltas ocultos)
     let hiddenT = Matrix.transpose(this.hidden);
     this.weights1 = Matrix.add(
       this.weights1,
@@ -141,7 +149,7 @@ class NeuralNetwork {
       Matrix.dot(inputsT, hiddenDeltas)
     );
 
-    // update bias
+    // actualizar los bias
     this.bias1 = Matrix.add(this.bias1, outputDeltas);
     this.bias0 = Matrix.add(this.bias0, hiddenDeltas);
   }
@@ -149,13 +157,13 @@ class NeuralNetwork {
 
 function sigmoid(x, deriv = false) {
   if (deriv) {
-    return x * (1 - x); // where x = sigmoid(x)
+    return x * (1 - x); // x = sigmoid(x)
   }
   return 1 / (1 + Math.exp(-x));
 }
 
 /***********************
-    MATRIX FUNCTIONS
+    FUNCIONES MATRICIALES
 ***********************/
 
 class Matrix {
@@ -164,7 +172,7 @@ class Matrix {
     this._cols = cols;
     this._data = data;
 
-    // initialise with zeroes if no data provided
+    // INICIALIZAR la información
     if (data == null || data.length == 0) {
       this._data = [];
       for (let i = 0; i < this._rows; i++) {
@@ -174,7 +182,7 @@ class Matrix {
         }
       }
     } else {
-      // check data integrity
+      // Revisar los datos y su arquitectura
       if (data.length != rows || data[0].length != cols) {
         throw new Error("Incorrect data dimensions!");
       }
@@ -193,7 +201,7 @@ class Matrix {
     return this._data;
   }
 
-  // add two matrices
+  // Sumar dos matrices
   static add(m0, m1) {
     Matrix.checkDimensions(m0, m1);
     let m = new Matrix(m0.rows, m0.cols);
@@ -205,19 +213,19 @@ class Matrix {
     return m;
   }
 
-  // check matrices have the same dimensions
+  // Verificar si ambas matrices tienen las mismas dimensiones
   static checkDimensions(m0, m1) {
     if (m0.rows != m1.rows || m0.cols != m1.cols) {
       throw new Error("Matrices are of different dimensions!");
     }
   }
 
-  // convert array to a one-rowed matrix
+  // Convertir un array a una matriz 1xN
   static convertFromArray(arr) {
     return new Matrix(1, arr.length, [arr]);
   }
 
-  // dot product of two matrices
+  // Producto punto entre dos matrices
   static dot(m0, m1) {
     if (m0.cols != m1.rows) {
       throw new Error('Matrices are not "dot" compatible!');
@@ -235,7 +243,7 @@ class Matrix {
     return m;
   }
 
-  // apply a function to each cell of the given matrix
+  // Aplicar una función en cada celda de una matriz
   static map(m0, mFunction) {
     let m = new Matrix(m0.rows, m0.cols);
     for (let i = 0; i < m.rows; i++) {
@@ -246,7 +254,7 @@ class Matrix {
     return m;
   }
 
-  // multiply two matrices (not the dot product)
+  // Multiplicar dos matrices
   static multiply(m0, m1) {
     Matrix.checkDimensions(m0, m1);
     let m = new Matrix(m0.rows, m0.cols);
@@ -258,7 +266,7 @@ class Matrix {
     return m;
   }
 
-  // subtract two matrices
+  // Restar dos matrices
   static subtract(m0, m1) {
     Matrix.checkDimensions(m0, m1);
     let m = new Matrix(m0.rows, m0.cols);
@@ -270,7 +278,7 @@ class Matrix {
     return m;
   }
 
-  // find the transpose of the given matrix
+  // Transponer una matriz
   static transpose(m0) {
     let m = new Matrix(m0.cols, m0.rows);
     for (let i = 0; i < m0.rows; i++) {
@@ -281,7 +289,7 @@ class Matrix {
     return m;
   }
 
-  // apply random weights between -1 and 1
+  // Aplicar pesos aleatorios entre -1 y 1
   randomWeights() {
     for (let i = 0; i < this.rows; i++) {
       for (let j = 0; j < this.cols; j++) {
